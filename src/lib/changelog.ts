@@ -11,6 +11,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '201.0.1',
+    date: '2025-12-10',
+	 added: [
+    ],
+    changed: [
+      
+    ],
+    fixed: [
+		'修复因弹幕缓存导致弹幕过滤功能失效的bug'
+	]
+	}, 
+  {
     version: '201.0.0',
     date: '2025-12-10',
     added: [

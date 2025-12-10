@@ -1857,7 +1857,40 @@ function PlayPageClient() {
       }
 
       // 转换弹幕格式
-      const danmakuData = convertDanmakuFormat(comments);
+      let danmakuData = convertDanmakuFormat(comments);
+
+      // 手动应用过滤规则（因为缓存的弹幕不会经过播放器的 filter 函数）
+      const filterConfig = danmakuFilterConfigRef.current;
+      if (filterConfig && filterConfig.rules.length > 0) {
+        const originalCount = danmakuData.length;
+        danmakuData = danmakuData.filter((danmu) => {
+          for (const rule of filterConfig.rules) {
+            // 跳过未启用的规则
+            if (!rule.enabled) continue;
+
+            try {
+              if (rule.type === 'normal') {
+                // 普通模式：字符串包含匹配
+                if (danmu.text.includes(rule.keyword)) {
+                  return false;
+                }
+              } else if (rule.type === 'regex') {
+                // 正则模式：正则表达式匹配
+                if (new RegExp(rule.keyword).test(danmu.text)) {
+                  return false;
+                }
+              }
+            } catch (e) {
+              console.error('弹幕过滤规则错误:', e);
+            }
+          }
+          return true;
+        });
+        const filteredCount = originalCount - danmakuData.length;
+        if (filteredCount > 0) {
+          console.log(`弹幕过滤: 原始 ${originalCount} 条，过滤 ${filteredCount} 条，剩余 ${danmakuData.length} 条`);
+        }
+      }
 
       // 加载弹幕到插件
       danmakuPluginRef.current.config({
@@ -1865,8 +1898,8 @@ function PlayPageClient() {
       });
       danmakuPluginRef.current.load();
 
-      setDanmakuCount(comments.length);
-      console.log(`弹幕加载成功，共 ${comments.length} 条`);
+      setDanmakuCount(danmakuData.length);
+      console.log(`弹幕加载成功，共 ${danmakuData.length} 条`);
 
       // 延迟一下让用户看到弹幕数量
       await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -4075,6 +4108,16 @@ function PlayPageClient() {
         onConfigUpdate={(config) => {
           setDanmakuFilterConfig(config);
           danmakuFilterConfigRef.current = config;
+
+          // 重新加载弹幕以应用新的过滤规则
+          if (danmakuPluginRef.current) {
+            try {
+              danmakuPluginRef.current.load();
+              console.log('弹幕过滤规则已更新，重新加载弹幕');
+            } catch (error) {
+              console.error('重新加载弹幕失败:', error);
+            }
+          }
         }}
         onShowToast={(message, type) => {
           setToast({
